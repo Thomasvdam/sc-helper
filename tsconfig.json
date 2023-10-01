@@ -1,15 +1,16 @@
 {
   "compilerOptions": {
     "strict": true,
-    "target": "es6",
-    "moduleResolution": "bundler",
-    "module": "ES6",
+    "target": "ES2022",
+    "moduleResolution": "Bundler",
+    "module": "ES2022",
     "esModuleInterop": true,
     "sourceMap": false,
     "rootDir": "src",
     "outDir": "dist",
+    "lib": ["ES2023", "DOM"],
     "noEmitOnError": true,
-    "typeRoots": ["node_modules/@types"]
+    "typeRoots": ["node_modules/@types", "node_modules/chrome-types"]
   },
   "include": ["src/*"]
 }

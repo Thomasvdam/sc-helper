@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>SoundCloud Helper Options</title>
+    <style>
+      .options-row {
+        display: flex;
+      }
+      .options-row + .options-row {
+        margin-top: 10px;
+      }
+
+      .buttons-container {
+        display: flex;
+        justify-content: space-between;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Highligh Set Settings</h2>
+    <section class="options-container">
+      <div class="options-row">
+        <label>
+          <input type="number" id="set_bytes_threshold" step="10" />
+          Number of bytes to consider as a set:
+        </label>
+      </div>
+      <div class="options-row">
+        <label>
+          <input type="number" id="waveform_polling_interval" step="100" />
+          Waveform Polling Timeout (ms):
+        </label>
+      </div>
+      <div class="options-row">
+        <label>
+          <input type="text" id="playlist_id" />
+          Playlist ID:
+        </label>
+      </div>
+      <div class="options-row">
+        <label>
+          <input type="text" id="client_id" />
+          SoundCloud API Client ID:
+        </label>
+      </div>
+      <hr />
+      <div class="buttons-container">
+        <div class="left">
+          <button class="cancel-button" id="reset">Reset defaults</button>
+        </div>
+        <div class="right">
+          <button class="reset-button" id="cancel">Cancel</button>
+          <button class="save-button" id="save">Save</button>
+        </div>
+      </div>
+    </section>
+
+    <script src="options.js" type="module"></script>
+  </body>
+</html>
