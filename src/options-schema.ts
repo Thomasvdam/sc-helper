@@ -1,18 +1,14 @@
-import { z } from 'zod';
+import * as v from "valibot";
 
-export const optionsSchema = z.object({
-  set_bytes_threshold: z.number(),
-  waveform_polling_interval: z.number(),
-  playlist_id: z.string(),
-  client_id: z.string(),
+export const optionsSchema = v.object({
+	set_duration_threshold_minutes: v.number(),
+	playlist_id: v.string(),
+	client_id: v.string(),
 });
-export type Options = z.infer<typeof optionsSchema>;
+export type Options = v.InferOutput<typeof optionsSchema>;
 
 export const defaultOptions: Options = {
-  set_bytes_threshold: 150, // Trial and error
-  waveform_polling_interval: 300, // Meh
-  playlist_id: '806754918', // Public as I'm too lazy to add authentication
-  client_id: 'LF6OAAOD1pPvKtdzJmuQf6Be2yrcvwCp', // Client ID of the SC web client. This changes every so often...
+	set_duration_threshold_minutes: 20,
+	playlist_id: "806754918", // Public as I'm too lazy to add authentication
+	client_id: "LF6OAAOD1pPvKtdzJmuQf6Be2yrcvwCp", // Client ID of the SC web client. This changes every so often...
 };
-
-export const optionsKeys = Object.keys(defaultOptions);

@@ -16,3 +16,10 @@ It is tailored to my needs, but perhaps you can find something useful in here to
 - [ ] Error handling. (lol)
 - [ ] Logging. (lolololol)
 - [ ] Design. (yeah no not gonna happen)
+
+
+1. create servicer worker
+2. Register handler for cookie snooping
+3. Get cookie from service worker in highlight sets
+4. Steal client_id somehow???
+5. Rename highligh-sets?
