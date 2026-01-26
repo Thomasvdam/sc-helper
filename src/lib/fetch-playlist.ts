@@ -1,25 +1,37 @@
-import * as v from "valibot";
+import { Data, Effect, Schema } from "effect";
 
-const PlaylistResponseSchema = v.object({
-	tracks: v.array(
-		v.object({
-			id: v.number(),
+class FailedToFetchPlaylistError extends Data.TaggedError("FailedToFetchPlaylistError")<{ error: unknown }> {}
+class FailedToParseJSONError extends Data.TaggedError("FailedToParseJSONError")<{ error: unknown }> {}
+
+const PlaylistResponseSchema = Schema.Struct({
+	tracks: Schema.Array(
+		Schema.Struct({
+			id: Schema.Number,
 		}),
 	),
 });
 
-export async function fetchPlaylistTrackIds(clientId: string, playlistId: string) {
-	// Use the SC api that their clients use rather than the public one.
-	const playlistResponse = await fetch(`https://api-v2.soundcloud.com/playlists/${playlistId}?client_id=${clientId}`);
+const decodePlaylistResponse = Schema.decodeUnknown(PlaylistResponseSchema);
 
-	const playlistAny = await playlistResponse.json();
+export const fetchPlaylistTrackIds = (clientId: string, playlistId: string) =>
+	Effect.gen(function* () {
+		// Use the SC api that their clients use rather than the public one.
+		const playlistResponse = yield* Effect.tryPromise({
+			try: () => fetch(`https://api-v2.soundcloud.com/playlists/${playlistId}?client_id=${clientId}`),
+			catch: (error) => Effect.fail(new FailedToFetchPlaylistError({ error })),
+		});
 
-	const playlist = v.parse(PlaylistResponseSchema, playlistAny);
+		const playlistAny = yield* Effect.tryPromise({
+			try: () => playlistResponse.json(),
+			catch: (error) => Effect.fail(new FailedToParseJSONError({ error })),
+		});
 
-	const trackIds: string[] = [];
-	for (const track of playlist.tracks) {
-		trackIds.push(track.id.toString());
-	}
+		const playlist = yield* decodePlaylistResponse(playlistAny);
 
-	return new Set(trackIds);
-}
+		const trackIds: string[] = [];
+		for (const track of playlist.tracks) {
+			trackIds.push(track.id.toString());
+		}
+
+		return trackIds;
+	});

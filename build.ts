@@ -5,8 +5,8 @@ import { fileURLToPath } from "node:url";
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const outdir = path.join(__dirname, "dist");
 
-const a = await Bun.build({
-	entrypoints: ["src/highlight-sets.ts", "src/options.ts", "src/xhr-interceptor.ts"],
+const _a = await Bun.build({
+	entrypoints: ["src/main.ts", "src/options-ui/index.html", "src/interceptors.ts"],
 	outdir,
 	target: "browser",
 	format: "esm",
@@ -17,5 +17,4 @@ await fs.cp(path.join(__dirname, "images"), path.join(outdir, "images"), {
 	recursive: true,
 });
 
-await fs.cp(path.join(__dirname, "src/options.html"), path.join(outdir, "options.html"));
 await fs.cp(path.join(__dirname, "manifest.json"), path.join(outdir, "manifest.json"));

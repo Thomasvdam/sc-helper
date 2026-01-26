@@ -12,5 +12,5 @@
 		"noEmitOnError": true,
 		"typeRoots": ["node_modules/@types", "node_modules/chrome-types"]
 	},
-	"include": ["src/*"]
+	"include": ["src/*", "src/options-ui/app.ts"]
 }

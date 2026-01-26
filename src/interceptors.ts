@@ -14,7 +14,7 @@
 	const originalOpen = XMLHttpRequest.prototype.open;
 	const originalSend = XMLHttpRequest.prototype.send;
 
-	console.log("[Early XHR Interceptor]: Injected into main world and active");
+	console.log("[Interceptors]: Injected into main world and active");
 
 	// Override prototype methods
 	XMLHttpRequest.prototype.open = function (
@@ -44,7 +44,7 @@
 						// Not JSON, that's ok
 					}
 				} catch (err) {
-					console.error("[Early Stream Error]:", err);
+					console.error("[Interceptors_xhr]: Stream error", err);
 				}
 			}
 		};
@@ -61,5 +61,15 @@
 		},
 	}) as typeof XMLHttpRequest;
 
-	console.log("[Early XHR Interceptor]: Setup complete");
+	// Listen for page navigations and notify the extension
+	window.navigation.addEventListener("navigate", (a) => {
+		// Don't trigger on replace navigations
+		if (a.navigationType === "replace") {
+			return;
+		}
+
+		window.dispatchEvent(new CustomEvent("main-world-navigation", {}));
+	});
+
+	console.log("[Interceptors]: Setup complete");
 })();
