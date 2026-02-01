@@ -14,6 +14,12 @@
         display: flex;
         justify-content: space-between;
       }
+
+      .reload-notice {
+        margin-top: 10px;
+        font-size: 0.9em;
+        color: #666;
+      }
     </style>
   </head>
   <body>
@@ -31,6 +37,24 @@
           Playlist ID:
         </label>
       </div>
+      <div class="options-row">
+        <label>
+          <select id="log_level">
+            <option value="None">None</option>
+            <option value="Fatal">Fatal</option>
+            <option value="Error">Error</option>
+            <option value="Warning">Warning</option>
+            <option value="Info">Info</option>
+            <option value="Debug">Debug</option>
+            <option value="Trace">Trace</option>
+            <option value="All">All</option>
+          </select>
+          Log level:
+        </label>
+      </div>
+      <p class="reload-notice">
+        Changing the log level requires reloading the extension (or the SoundCloud tab) before it takes effect.
+      </p>
       <hr />
       <div class="buttons-container">
         <div class="left">

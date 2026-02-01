@@ -1,17 +1,19 @@
 import { Effect } from "effect";
 import { type Config, defaultConfig, getConfig } from "../lib/config";
 
-function getInputElements() {
-	const inputElements: Record<string, HTMLInputElement> = {};
+function getFormElements(): Record<keyof Config, HTMLInputElement | HTMLSelectElement> {
+	const elements: Record<string, HTMLInputElement | HTMLSelectElement> = {};
 
-	Object.keys(defaultConfig).forEach((key) => {
+	for (const key of Object.keys(defaultConfig) as (keyof Config)[]) {
 		const element = document.getElementById(key);
-		if (!element) throw new Error(`Input element for "${key}" not present.`);
+		if (!element) throw new Error(`Form element for "${key}" not present.`);
+		if (!(element instanceof HTMLInputElement || element instanceof HTMLSelectElement)) {
+			throw new Error(`Element "${key}" must be an input or select`);
+		}
+		elements[key] = element;
+	}
 
-		inputElements[key] = element as HTMLInputElement;
-	});
-
-	return inputElements as Record<keyof Config, HTMLInputElement>;
+	return elements as Record<keyof Config, HTMLInputElement | HTMLSelectElement>;
 }
 
 function assertKey(key: string): asserts key is keyof Config {
@@ -20,33 +22,35 @@ function assertKey(key: string): asserts key is keyof Config {
 }
 
 function restoreConfig() {
-	Effect.runSync(
+	Effect.runPromise(
 		Effect.gen(function* () {
 			const config = yield* getConfig();
 
-			const inputElements = getInputElements();
+			const elements = getFormElements();
 			for (const [key, value] of Object.entries(config)) {
 				assertKey(key);
-				inputElements[key].value = value.toString();
+				elements[key].value = value.toString();
 			}
 		}),
 	);
 }
 
 function saveConfig() {
-	const inputElements = getInputElements();
+	const elements = getFormElements();
 	const config = {} as { -readonly [P in keyof Config]: Config[P] };
 
-	for (const [key, element] of Object.entries(inputElements)) {
+	for (const [key, element] of Object.entries(elements)) {
 		assertKey(key);
 
-		const inputType = element.getAttribute("type");
-		const value = inputType === "number" ? Number(element.value) : element.value;
+		const value =
+			element instanceof HTMLInputElement && element.getAttribute("type") === "number"
+				? Number(element.value)
+				: element.value;
 		// @ts-expect-error No clue why it thinks assigning makes it never.
 		config[key] = value;
 	}
 
-	chrome.storage.sync.set(config);
+	chrome.storage.sync.set(config, closeConfig);
 }
 
 function restoreDefaults() {
