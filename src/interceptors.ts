@@ -1,9 +1,6 @@
 // XHR Interceptor - runs in MAIN world to intercept page's XMLHttpRequest
 // This file is injected into the page's main world, not the isolated content script world
 
-// TODO: Extract client ID
-// TODO: Add tracks request interceptor, check the representation
-
 (() => {
 	// @ts-expect-error - window.__XHR_INTERCEPTED__ is custom
 	if (window.__XHR_INTERCEPTED__) return; // Prevent double injection
@@ -31,21 +28,32 @@
 
 	XMLHttpRequest.prototype.send = function (...args: Parameters<typeof XMLHttpRequest.prototype.send>) {
 		const xhr = this as XMLHttpRequest & { _monitoredUrl?: string };
-		const requestUrl = xhr._monitoredUrl || "";
+		const requestUrl = new URL(xhr._monitoredUrl || "");
 
 		const loadHandler = () => {
-			if (requestUrl.includes("soundcloud.com/stream")) {
+			if (!requestUrl.hostname.includes("soundcloud.com")) {
+				return;
+			}
+
+			const streamType = getStreamType(requestUrl);
+			if (streamType === null) {
+				return;
+			}
+
+			try {
+				const responseText = xhr.responseText;
 				try {
-					const responseText = xhr.responseText;
-					try {
-						const data = JSON.parse(responseText);
-						window.dispatchEvent(new CustomEvent("streamResponse", { detail: data }));
-					} catch {
-						// Not JSON, that's ok
-					}
-				} catch (err) {
-					console.error("[Interceptors_xhr]: Stream error", err);
+					const data = JSON.parse(responseText);
+					window.dispatchEvent(
+						new CustomEvent(`response-${streamType}`, {
+							detail: { data, requestUrl: requestUrl.toString() },
+						}),
+					);
+				} catch {
+					// Not JSON, that's ok
 				}
+			} catch (err) {
+				console.error("[Interceptors_xhr]: Stream error", err);
 			}
 		};
 
@@ -73,3 +81,19 @@
 
 	console.log("[Interceptors]: Setup complete");
 })();
+
+function getStreamType(url: URL) {
+	if (url.pathname.startsWith("/me/play-history") || url.pathname === "/tracks") {
+		return null;
+	}
+
+	if (url.pathname.startsWith("/stream")) {
+		return "stream";
+	}
+
+	if (url.pathname.endsWith("/spotlight") || url.pathname.endsWith("/tracks") || url.pathname.endsWith("/toptracks")) {
+		return "tracks";
+	}
+
+	return null;
+}
