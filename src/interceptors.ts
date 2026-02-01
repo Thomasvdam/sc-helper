@@ -1,7 +1,11 @@
 // XHR Interceptor - runs in MAIN world to intercept page's XMLHttpRequest
 // This file is injected into the page's main world, not the isolated content script world
 
+import { parse as parseCookie } from "cookie";
+
 let previousClientId: string | null = null;
+let previousAuthHeader: string | null = null;
+let previousDatadomeCookie: string | null = null;
 
 (() => {
 	// @ts-expect-error - window.__XHR_INTERCEPTED__ is custom
@@ -12,6 +16,7 @@ let previousClientId: string | null = null;
 	const OriginalXHR = window.XMLHttpRequest;
 	const originalOpen = XMLHttpRequest.prototype.open;
 	const originalSend = XMLHttpRequest.prototype.send;
+	const originalSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
 
 	console.log("[Interceptors]: Injected into main world and active");
 
@@ -43,6 +48,19 @@ let previousClientId: string | null = null;
 				return;
 			}
 
+			const headers = this.getAllResponseHeaders();
+			if (headers.includes("x-set-cookie")) {
+				const cookieHeader = this.getResponseHeader("x-set-cookie");
+				if (cookieHeader) {
+					const cookie = parseCookie(cookieHeader);
+					const datadomeCookie = cookie.datadome;
+					if (datadomeCookie && datadomeCookie !== previousDatadomeCookie) {
+						previousDatadomeCookie = datadomeCookie;
+						window.dispatchEvent(new CustomEvent("soundcloud-datadome-cookie", { detail: datadomeCookie }));
+					}
+				}
+			}
+
 			const streamType = getStreamType(requestUrl);
 			if (streamType === null) {
 				return;
@@ -67,6 +85,14 @@ let previousClientId: string | null = null;
 
 		xhr.addEventListener("load", loadHandler);
 		return originalSend.apply(this, args);
+	};
+
+	XMLHttpRequest.prototype.setRequestHeader = function (name: string, value: string) {
+		if (name.toLowerCase() === "authorization" && value !== previousAuthHeader) {
+			previousAuthHeader = value;
+			window.dispatchEvent(new CustomEvent("soundcloud-auth-header", { detail: value }));
+		}
+		return originalSetRequestHeader.call(this, name, value);
 	};
 
 	// Also proxy the constructor

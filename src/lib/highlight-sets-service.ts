@@ -2,6 +2,7 @@ import { Context, Data, Effect, Layer, MutableHashSet, Queue, Runtime } from "ef
 import { ConfigService } from "./config";
 import { getPermalink } from "./permalink";
 import { PermalinkToStreamState } from "./permalink-to-stream-state";
+import type { SoundcloudClientService } from "./soundcloud-client-service";
 import { TodoPlaylist } from "./todo-playlist";
 
 export class HighlightSetsService extends Context.Tag("HighlightSetsService")<HighlightSetsService, void>() {}
@@ -9,7 +10,7 @@ export class HighlightSetsService extends Context.Tag("HighlightSetsService")<Hi
 export const HighlightSetsServiceLive = Layer.effect(
 	HighlightSetsService,
 	Effect.gen(function* () {
-		const runtime = yield* Effect.runtime();
+		const runtime = yield* Effect.runtime<SoundcloudClientService | ConfigService>();
 		const config = yield* ConfigService;
 		const todoPlaylist = yield* TodoPlaylist;
 		const permalinkToStreamState = yield* PermalinkToStreamState;
@@ -83,7 +84,22 @@ export const HighlightSetsServiceLive = Layer.effect(
 
 				yield* Effect.logTrace(`Marking item as new set`);
 
-				markSoundListItemAsNewSet(item);
+				const setItem = yield* addPlaylistButton(item);
+
+				setItem.addEventListener("click", () => {
+					Runtime.runPromise(
+						runtime,
+						Effect.gen(function* () {
+							yield* todoPlaylist.addToTodoPlaylist(streamItem.id);
+							yield* Effect.logDebug("Added to todo playlist");
+							setItem.innerHTML = "✅";
+							setItem.style.cursor = "default";
+							item.setAttribute("title", "Added to todo playlist");
+							item.style.transition = "opacity 0.2s ease-in-out";
+							item.style.opacity = "0.2";
+						}),
+					);
+				});
 			}).pipe(
 				Effect.tapErrorTag("NoPermalinkError", (error) => Effect.logError(error.message)),
 				Effect.catchTags({
@@ -130,23 +146,31 @@ const addSkippedReason = (soundListItem: HTMLElement, reason: string) =>
 		soundListItem.style.opacity = "0.2";
 	});
 
-function markSoundListItemAsNewSet(soundListItem: Element) {
-	// TODO: Add to playlist button
-	const statsContainer = soundListItem.querySelector("ul.soundStats");
+class NoStatsContainerError extends Data.TaggedError("NoStatsContainerError")<{ message: string }> {}
 
-	if (!statsContainer) {
-		return;
-	}
+const addPlaylistButton = (soundListItem: Element) =>
+	Effect.gen(function* () {
+		const statsContainer = soundListItem.querySelector("ul.soundStats");
 
-	const setItem = document.createElement("li");
-	setItem.classList.add("sc-ministats-item");
-	const icon = document.createElement("span");
-	icon.classList.add("sc-ministats", "sc-ministats-small", "sc-ministats-sounds", "sc-text-secondary");
-	icon.style.backgroundColor = "#ff5500";
-	icon.style.margin = "0";
-	icon.style.padding = "6px";
-	icon.style.borderRadius = "15px";
+		if (!statsContainer) {
+			throw yield* new NoStatsContainerError({ message: "No stats container found" });
+		}
 
-	setItem.append(icon);
-	statsContainer.append(setItem);
-}
+		const setItem = document.createElement("li");
+		setItem.classList.add("sc-ministats-item");
+		setItem.style.marginLeft = "6px";
+		setItem.style.cursor = "pointer";
+
+		const icon = document.createElement("span");
+		icon.classList.add("sc-ministats", "sc-ministats-small", "sc-ministats-sounds", "sc-text-secondary");
+		icon.style.backgroundColor = "#ff5500";
+		icon.style.margin = "0";
+		icon.style.padding = "6px";
+		icon.style.borderRadius = "15px";
+		icon.innerHTML = "🎧";
+
+		setItem.append(icon);
+		statsContainer.append(setItem);
+
+		return setItem;
+	});

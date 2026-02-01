@@ -17,6 +17,7 @@
 		"typescript": "^5.9.3"
 	},
 	"dependencies": {
+		"cookie": "^1.1.1",
 		"effect": "^3.19.15"
 	},
 	"type": "module"
