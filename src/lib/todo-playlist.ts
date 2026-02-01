@@ -14,7 +14,7 @@ export const TodoPlaylistLive = Layer.effect(
 	Effect.gen(function* () {
 		const config = yield* ConfigService;
 
-		const trackIds = yield* fetchPlaylistTrackIds(config.client_id, config.playlist_id);
+		const trackIds = yield* fetchPlaylistTrackIds(config.playlist_id);
 
 		const set = MutableHashSet.fromIterable(trackIds);
 

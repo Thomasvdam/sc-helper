@@ -1,6 +1,8 @@
 // XHR Interceptor - runs in MAIN world to intercept page's XMLHttpRequest
 // This file is injected into the page's main world, not the isolated content script world
 
+let previousClientId: string | null = null;
+
 (() => {
 	// @ts-expect-error - window.__XHR_INTERCEPTED__ is custom
 	if (window.__XHR_INTERCEPTED__) return; // Prevent double injection
@@ -29,6 +31,12 @@
 	XMLHttpRequest.prototype.send = function (...args: Parameters<typeof XMLHttpRequest.prototype.send>) {
 		const xhr = this as XMLHttpRequest & { _monitoredUrl?: string };
 		const requestUrl = new URL(xhr._monitoredUrl || "");
+
+		const clientId = requestUrl.searchParams.get("client_id");
+		if (clientId && clientId !== previousClientId) {
+			previousClientId = clientId;
+			window.dispatchEvent(new CustomEvent("soundcloud-client-id", { detail: clientId }));
+		}
 
 		const loadHandler = () => {
 			if (!requestUrl.hostname.includes("soundcloud.com")) {

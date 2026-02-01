@@ -1,4 +1,5 @@
 import { Data, Effect, Schema } from "effect";
+import { ClientIdService } from "./client-id-service";
 
 class FailedToFetchPlaylistError extends Data.TaggedError("FailedToFetchPlaylistError")<{ error: unknown }> {}
 class FailedToParseJSONError extends Data.TaggedError("FailedToParseJSONError")<{ error: unknown }> {}
@@ -13,8 +14,11 @@ const PlaylistResponseSchema = Schema.Struct({
 
 const decodePlaylistResponse = Schema.decodeUnknown(PlaylistResponseSchema);
 
-export const fetchPlaylistTrackIds = (clientId: string, playlistId: string) =>
+export const fetchPlaylistTrackIds = (playlistId: string) =>
 	Effect.gen(function* () {
+		const clientIdService = yield* ClientIdService;
+		const clientId = yield* clientIdService.getClientId();
+
 		// Use the SC api that their clients use rather than the public one.
 		const playlistResponse = yield* Effect.tryPromise({
 			try: () => fetch(`https://api-v2.soundcloud.com/playlists/${playlistId}?client_id=${clientId}`),

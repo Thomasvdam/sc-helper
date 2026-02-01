@@ -7,19 +7,6 @@ It is tailored to my needs, but perhaps you can find something useful in here to
 ## TODOs/Nice to haves
 
 - [ ] Add directly to playlist. Not sure how to achieve this though without going through the API with an auth token... Perhaps I can hijack the token somehow and send it to the content script.
-- [x] Migrate to TS and add a build step.
-- [x] Move hardcoded config to an extensions settings page.
-- [ ] 'Steal' client_id and auth token from main page.
 - [ ] Integrate playlist utility script.
 - [ ] Dynamically build the manifest file.
-- [ ] Add track length check to playlist utility.
-- [ ] Error handling. (lol)
-- [ ] Logging. (lolololol)
 - [ ] Design. (yeah no not gonna happen)
-
-
-1. create servicer worker
-2. Register handler for cookie snooping
-3. Get cookie from service worker in highlight sets
-4. Steal client_id somehow???
-5. Rename highligh-sets?
