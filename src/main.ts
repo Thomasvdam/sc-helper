@@ -1,13 +1,15 @@
 import { Effect, Logger, LogLevel } from "effect";
 import { ConfigService, getConfig } from "./lib/config";
 import { HighlightSetsServiceLive } from "./lib/highlight-sets-service";
+import { LoadingStateLive, runLoadingIndicator } from "./lib/loading-state";
 import { PermalinkToStreamStateLive } from "./lib/permalink-to-stream-state";
 import { SoundcloudClientServiceLive } from "./lib/soundcloud-client-service";
 import { StreamServiceLive } from "./lib/stream-service";
 import { TodoPlaylistLive } from "./lib/todo-playlist";
 import { TrackLikesServiceLive } from "./lib/track-likes-service";
 
-const program = Effect.gen(function* () {}).pipe(
+const program = runLoadingIndicator.pipe(
+	Effect.provide(LoadingStateLive),
 	Effect.provide(HighlightSetsServiceLive),
 	Effect.provide(TodoPlaylistLive),
 	Effect.provide(StreamServiceLive),
