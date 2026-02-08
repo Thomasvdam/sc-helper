@@ -5,11 +5,13 @@ import { PermalinkToStreamStateLive } from "./lib/permalink-to-stream-state";
 import { SoundcloudClientServiceLive } from "./lib/soundcloud-client-service";
 import { StreamServiceLive } from "./lib/stream-service";
 import { TodoPlaylistLive } from "./lib/todo-playlist";
+import { TrackLikesServiceLive } from "./lib/track-likes-service";
 
 const program = Effect.gen(function* () {}).pipe(
 	Effect.provide(HighlightSetsServiceLive),
 	Effect.provide(TodoPlaylistLive),
 	Effect.provide(StreamServiceLive),
+	Effect.provide(TrackLikesServiceLive),
 	Effect.provide(SoundcloudClientServiceLive),
 	Effect.provide(PermalinkToStreamStateLive),
 );

@@ -121,6 +121,10 @@ function getStreamType(url: URL) {
 		return null;
 	}
 
+	if (url.pathname.includes("/me/track_likes")) {
+		return "track_likes";
+	}
+
 	if (url.pathname.startsWith("/stream")) {
 		return "stream";
 	}

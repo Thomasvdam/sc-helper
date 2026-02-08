@@ -4,6 +4,7 @@ import { getPermalink } from "./permalink";
 import { PermalinkToStreamState } from "./permalink-to-stream-state";
 import type { SoundcloudClientService } from "./soundcloud-client-service";
 import { TodoPlaylist } from "./todo-playlist";
+import { TrackLikesService } from "./track-likes-service";
 
 export class HighlightSetsService extends Context.Tag("HighlightSetsService")<HighlightSetsService, void>() {}
 
@@ -14,6 +15,7 @@ export const HighlightSetsServiceLive = Layer.effect(
 		const config = yield* ConfigService;
 		const todoPlaylist = yield* TodoPlaylist;
 		const permalinkToStreamState = yield* PermalinkToStreamState;
+		const trackLikesService = yield* TrackLikesService;
 
 		const processedItems = MutableHashSet.empty<Element>();
 		const newSoundListItems = yield* Queue.unbounded<HTMLElement>();
@@ -67,15 +69,16 @@ export const HighlightSetsServiceLive = Layer.effect(
 					return yield* addSkippedReason(item, "Playlist");
 				}
 
-				if (isLiked(item)) {
-					return yield* addSkippedReason(item, "Already liked");
-				}
-
 				const streamItem = yield* permalinkToStreamState.getStreamEntry(permalink);
 
 				yield* Effect.logTrace(`Stream item:`, streamItem);
 				if (todoPlaylist.isInTodoPlaylist(streamItem.id)) {
 					return yield* addSkippedReason(item, "Already in todo playlist");
+				}
+
+				const isLiked = yield* trackLikesService.isLiked(streamItem.id);
+				if (isLiked) {
+					return yield* addSkippedReason(item, "Already liked");
 				}
 
 				if (streamItem.duration < config.set_duration_threshold_minutes * 60 * 1_000) {
@@ -132,11 +135,6 @@ const getPermalinkFromSoundListItem = (soundListItem: Element) =>
 function isPlaylist(soundListItem: Element) {
 	const playlistElement = soundListItem.querySelector(".playlist");
 	return !!playlistElement;
-}
-
-function isLiked(soundListItem: Element) {
-	const selectedLikeButton = soundListItem.querySelector("button.sc-button-like.sc-button-selected");
-	return !!selectedLikeButton;
 }
 
 const addSkippedReason = (soundListItem: HTMLElement, reason: string) =>
