@@ -45,6 +45,7 @@ There is currently no automated test suite. Before handing off a change, run `bu
 
 - Follow the existing TypeScript/Effect style and let Biome format code; do not edit generated `dist/` or vendored `node_modules/`.
 - Preserve unrelated worktree changes.
+- Always increment `manifest.json`'s `version` for implementation or behavior changes, in the same change as the implementation. Use SemVer (`MAJOR.MINOR.PATCH`): increment PATCH for backwards-compatible fixes and internal changes, MINOR for backwards-compatible features, and MAJOR for breaking behavior or compatibility changes. Documentation-only and formatting-only changes do not require a version bump.
 - Update `manifest.json` when adding an entrypoint, permission, host, or extension asset; update `build.ts` when the new asset also needs copying or bundling.
 - Playlist updates are remote, destructive operations. Keep local state updates after successful requests and manually verify both addition and removal behavior.
 - Finish an implementation task with a scoped diff, automated validation, and a conventional commit.
