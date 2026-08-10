@@ -4,6 +4,11 @@ import { SoundcloudClientService } from "./soundcloud-client-service";
 class FailedToFetchPlaylistError extends Data.TaggedError("FailedToFetchPlaylistError")<{ error: unknown }> {}
 class FailedToParseJSONError extends Data.TaggedError("FailedToParseJSONError")<{ error: unknown }> {}
 
+const ResolvedPlaylistSchema = Schema.Struct({
+	id: Schema.Number,
+	kind: Schema.Literal("playlist"),
+});
+
 const PlaylistResponseSchema = Schema.Struct({
 	permalink_url: Schema.String,
 	tracks: Schema.Array(
@@ -14,6 +19,29 @@ const PlaylistResponseSchema = Schema.Struct({
 });
 
 const decodePlaylistResponse = Schema.decodeUnknown(PlaylistResponseSchema);
+const decodeResolvedPlaylist = Schema.decodeUnknown(ResolvedPlaylistSchema);
+
+export const resolvePlaylistId = (playlistUrl: string) =>
+	Effect.gen(function* () {
+		const clientService = yield* SoundcloudClientService;
+		const clientId = yield* clientService.getClientId();
+		const resolveUrl = new URL("https://api-v2.soundcloud.com/resolve");
+		resolveUrl.searchParams.set("url", playlistUrl);
+		resolveUrl.searchParams.set("client_id", clientId);
+
+		const playlistResponse = yield* Effect.tryPromise({
+			try: () => fetch(resolveUrl),
+			catch: (error) => new FailedToFetchPlaylistError({ error }),
+		});
+
+		const playlistAny = yield* Effect.tryPromise({
+			try: () => playlistResponse.json(),
+			catch: (error) => new FailedToParseJSONError({ error }),
+		});
+
+		const playlist = yield* decodeResolvedPlaylist(playlistAny);
+		return playlist.id.toString();
+	});
 
 export const fetchPlaylist = (playlistId: string) =>
 	Effect.gen(function* () {
@@ -39,6 +67,12 @@ export const fetchPlaylistTrackIds = (playlistId: string) =>
 	Effect.gen(function* () {
 		const playlist = yield* fetchPlaylist(playlistId);
 		return playlist.tracks.map((track) => track.id.toString());
+	});
+
+export const fetchPlaylistTrackIdsFromUrl = (playlistUrl: string) =>
+	Effect.gen(function* () {
+		const playlistId = yield* resolvePlaylistId(playlistUrl);
+		return yield* fetchPlaylistTrackIds(playlistId);
 	});
 
 export class FailedToPutPlaylistError extends Data.TaggedError("FailedToPutPlaylistError")<{ error: unknown }> {}

@@ -1,6 +1,12 @@
 import { Context, Effect, Layer, MutableHashSet } from "effect";
 import { ConfigService } from "./config";
-import { type FailedToPutPlaylistError, fetchPlaylist, fetchPlaylistTrackIds, putPlaylist } from "./playlist-api";
+import {
+	type FailedToPutPlaylistError,
+	fetchPlaylist,
+	fetchPlaylistTrackIds,
+	fetchPlaylistTrackIdsFromUrl,
+	putPlaylist,
+} from "./playlist-api";
 import type { SoundcloudClientService } from "./soundcloud-client-service";
 import { TrackLikesService } from "./track-likes-service";
 
@@ -14,6 +20,16 @@ export class TodoPlaylist extends Context.Tag("TodoPlaylist")<
 		) => Effect.Effect<void, FailedToPutPlaylistError, SoundcloudClientService | ConfigService>;
 		cleanUpLikedTracks: () => Effect.Effect<
 			{ removedCount: number; remainingCount: number },
+			unknown,
+			SoundcloudClientService | ConfigService | TrackLikesService
+		>;
+		copyUnlikedTracksFromPlaylist: (playlistUrl: string) => Effect.Effect<
+			{
+				sourceCount: number;
+				likedCount: number;
+				alreadyInTodoCount: number;
+				addedCount: number;
+			},
 			unknown,
 			SoundcloudClientService | ConfigService | TrackLikesService
 		>;
@@ -36,6 +52,13 @@ export const TodoPlaylistLive = Layer.effect(
 
 		const size = MutableHashSet.size(set);
 		yield* Effect.logDebug("Todo playlist initialized", { permalinkUrl, trackCount: size });
+
+		const replaceLocalTrackIds = (ids: string[]) => {
+			MutableHashSet.clear(set);
+			for (const id of ids) {
+				MutableHashSet.add(set, id);
+			}
+		};
 
 		const addToTodoPlaylist = (id: string | string[]) =>
 			Effect.gen(function* () {
@@ -69,10 +92,7 @@ export const TodoPlaylistLive = Layer.effect(
 				yield* putPlaylist(config.playlist_id, remainingTrackIds);
 
 				// Only update the local set if the request is successful.
-				MutableHashSet.clear(set);
-				for (const id of remainingTrackIds) {
-					MutableHashSet.add(set, id);
-				}
+				replaceLocalTrackIds(remainingTrackIds);
 
 				return {
 					removedCount: currentTrackIds.length - remainingTrackIds.length,
@@ -80,6 +100,53 @@ export const TodoPlaylistLive = Layer.effect(
 				};
 			});
 
-		return { getPermalinkUrl: () => permalinkUrl, isInTodoPlaylist, addToTodoPlaylist, cleanUpLikedTracks };
+		const copyUnlikedTracksFromPlaylist = (playlistUrl: string) =>
+			Effect.gen(function* () {
+				const sourceTrackIds = Array.from(new Set(yield* fetchPlaylistTrackIdsFromUrl(playlistUrl)));
+				yield* trackLikesService.likesAvailable.await;
+
+				const currentTodoTrackIds = yield* fetchPlaylistTrackIds(config.playlist_id);
+				const currentTodoTrackIdSet = new Set(currentTodoTrackIds);
+				replaceLocalTrackIds(currentTodoTrackIds);
+
+				const unlikedTrackIds: string[] = [];
+				let likedCount = 0;
+				let alreadyInTodoCount = 0;
+
+				for (const id of sourceTrackIds) {
+					if (yield* trackLikesService.isLiked(id)) {
+						likedCount += 1;
+						continue;
+					}
+
+					if (currentTodoTrackIdSet.has(id)) {
+						alreadyInTodoCount += 1;
+						continue;
+					}
+
+					unlikedTrackIds.push(id);
+				}
+
+				if (unlikedTrackIds.length > 0) {
+					const updatedTodoTrackIds = [...currentTodoTrackIds, ...unlikedTrackIds];
+					yield* putPlaylist(config.playlist_id, updatedTodoTrackIds);
+					replaceLocalTrackIds(updatedTodoTrackIds);
+				}
+
+				return {
+					sourceCount: sourceTrackIds.length,
+					likedCount,
+					alreadyInTodoCount,
+					addedCount: unlikedTrackIds.length,
+				};
+			});
+
+		return {
+			getPermalinkUrl: () => permalinkUrl,
+			isInTodoPlaylist,
+			addToTodoPlaylist,
+			cleanUpLikedTracks,
+			copyUnlikedTracksFromPlaylist,
+		};
 	}),
 );

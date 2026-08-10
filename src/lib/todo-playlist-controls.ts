@@ -30,16 +30,27 @@ export const TodoPlaylistControlsLive = Layer.effect(
 			Runtime.runSync(runtime, Effect.logDebug(message).pipe(Effect.annotateLogs({ details })));
 		const logError = (message: string, error: unknown) => Runtime.runSync(runtime, Effect.logError(message, error));
 
-		let cleanupButton: HTMLButtonElement | null = null;
+		let actionButton: HTMLButtonElement | null = null;
 		let domObserver: MutationObserver | null = null;
 
 		const isTodoPlaylistPage = (location = window.location.href) =>
 			normalizeNavigationLocation(todoPlaylist.getPermalinkUrl()) === normalizeNavigationLocation(location);
 
-		const removeCleanupButton = () => {
-			if (cleanupButton) logDebug("Removed cleanup button");
-			cleanupButton?.remove();
-			cleanupButton = null;
+		const isPlaylistPage = (location = window.location.href) => {
+			const pathname = new URL(location, window.location.origin).pathname;
+			return pathname.split("/").includes("sets");
+		};
+
+		const getPageAction = (location = window.location.href) => {
+			if (isTodoPlaylistPage(location)) return "cleanup" as const;
+			if (isPlaylistPage(location)) return "copy" as const;
+			return null;
+		};
+
+		const removeActionButton = () => {
+			if (actionButton) logDebug("Removed playlist action button");
+			actionButton?.remove();
+			actionButton = null;
 		};
 
 		const stopWaitingForDOM = () => {
@@ -48,81 +59,110 @@ export const TodoPlaylistControlsLive = Layer.effect(
 			domObserver = null;
 		};
 
-		const addCleanupButton = (controls: HTMLElement) => {
-			if (cleanupButton?.isConnected) return;
+		const addActionButton = (controls: HTMLElement, action: "cleanup" | "copy") => {
+			if (actionButton?.isConnected && actionButton.dataset.action === action) return;
+			removeActionButton();
 
-			logDebug("Injected cleanup button", {
+			logDebug("Injected playlist action button", {
 				controlsId: controls.id,
 				controlsClassName: controls.className,
 			});
 
-			cleanupButton = document.createElement("button");
-			cleanupButton.type = "button";
-			cleanupButton.className = "sc-button sc-button-medium sc-helper-cleanup-button";
-			cleanupButton.textContent = "Clean up liked tracks";
-			cleanupButton.title = "Remove liked tracks from this playlist";
-			cleanupButton.style.marginLeft = "8px";
+			actionButton = document.createElement("button");
+			actionButton.type = "button";
+			actionButton.dataset.action = action;
+			actionButton.className = `sc-button sc-button-medium sc-helper-${action}-button`;
+			actionButton.textContent = action === "cleanup" ? "Clean up liked tracks" : "Copy unliked tracks";
+			actionButton.title =
+				action === "cleanup"
+					? "Remove liked tracks from this playlist"
+					: "Read this playlist and add tracks you have not liked to your todo playlist";
+			actionButton.style.marginLeft = "8px";
+			const button = actionButton;
 
-			cleanupButton.addEventListener("click", () => {
-				if (!cleanupButton || cleanupButton.disabled) return;
+			button.addEventListener("click", () => {
+				if (button.disabled) return;
 
-				cleanupButton.disabled = true;
-				cleanupButton.textContent = "Cleaning up…";
+				button.disabled = true;
+				button.textContent = action === "cleanup" ? "Cleaning up…" : "Copying…";
 
-				Runtime.runPromise(runtime, todoPlaylist.cleanUpLikedTracks()).then(
-					({ removedCount, remainingCount }) => {
+				const handleFailure = (error: unknown) => {
+					logError(`Failed to ${action === "cleanup" ? "clean up" : "copy playlist"}`, error);
+					if (!button.isConnected) return;
+					button.textContent = action === "cleanup" ? "Cleanup failed — try again" : "Copy failed — try again";
+					button.disabled = false;
+				};
+
+				if (action === "cleanup") {
+					Runtime.runPromise(runtime, todoPlaylist.cleanUpLikedTracks()).then(({ removedCount, remainingCount }) => {
+						if (!button.isConnected) return;
 						logDebug("Cleanup completed", { removedCount, remainingCount });
-						if (!cleanupButton) return;
-						cleanupButton.textContent = `Removed ${removedCount} liked track${removedCount === 1 ? "" : "s"} (${remainingCount} remaining)`;
-						cleanupButton.disabled = false;
-					},
-					(error) => {
-						logError("Failed to clean up liked tracks", error);
-						if (!cleanupButton) return;
-						cleanupButton.textContent = "Cleanup failed — try again";
-						cleanupButton.disabled = false;
-					},
-				);
+						button.textContent = `Removed ${removedCount} liked track${removedCount === 1 ? "" : "s"} (${remainingCount} remaining)`;
+						button.disabled = false;
+					}, handleFailure);
+					return;
+				}
+
+				Runtime.runPromise(
+					runtime,
+					todoPlaylist.copyUnlikedTracksFromPlaylist(normalizeNavigationLocation(window.location.href)),
+				).then((result) => {
+					if (!button.isConnected) return;
+					logDebug("Playlist copy completed", result);
+					button.textContent =
+						result.addedCount === 0
+							? "No new unliked tracks"
+							: `Added ${result.addedCount} unliked track${result.addedCount === 1 ? "" : "s"}`;
+					button.disabled = false;
+				}, handleFailure);
 			});
 
-			controls.append(cleanupButton);
+			controls.append(button);
 		};
 
 		const injectWhenReady = () => {
-			if (!isTodoPlaylistPage()) {
+			const action = getPageAction();
+			if (!action) {
 				stopWaitingForDOM();
-				removeCleanupButton();
+				removeActionButton();
 				return;
 			}
 
 			const controls = document.querySelector<HTMLElement>(playlistControlsSelectors);
 			if (!controls) return;
 
-			addCleanupButton(controls);
+			addActionButton(controls, action);
 			stopWaitingForDOM();
 		};
 
 		const waitForDOM = (navigationLocation = window.location.href) => {
-			const targetMatches = isTodoPlaylistPage(navigationLocation);
-			const currentMatches = isTodoPlaylistPage();
+			const targetAction = getPageAction(navigationLocation);
+			const currentAction = getPageAction();
+			const currentMatches =
+				normalizeNavigationLocation(navigationLocation) === normalizeNavigationLocation(window.location.href);
 			logDebug("Evaluated playlist location", {
 				targetLocation: navigationLocation,
 				currentLocation: window.location.href,
-				targetMatches,
+				targetAction,
+				currentAction,
 				currentMatches,
 			});
 
-			if (!targetMatches) {
+			if (!targetAction) {
 				logDebug("Cleared playlist control state after leaving configured playlist");
 				stopWaitingForDOM();
-				removeCleanupButton();
+				removeActionButton();
 				return;
 			}
 
-			if (isTodoPlaylistPage()) injectWhenReady();
-			if (cleanupButton?.isConnected) {
-				return;
+			if (!currentMatches || currentAction !== targetAction) {
+				removeActionButton();
 			}
+
+			if (currentMatches) {
+				injectWhenReady();
+			}
+			if (actionButton?.isConnected && actionButton.dataset.action === targetAction && currentMatches) return;
 			if (domObserver) {
 				return;
 			}
