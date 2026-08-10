@@ -45,11 +45,11 @@ export const HighlightSetsServiceLive = Layer.effect(
 		});
 		mutationObserver.observe(document.body, { childList: true, subtree: true, attributes: false });
 
-		window.addEventListener("main-world-navigation", () => {
+		window.addEventListener("main-world-navigation", (details) => {
 			Runtime.runSync(
 				runtime,
 				Effect.gen(function* () {
-					yield* Effect.logDebug("Navigation detected, resetting state");
+					yield* Effect.logDebug("Navigation detected, resetting state").pipe(Effect.annotateLogs({ details }));
 
 					MutableHashSet.clear(processedItems);
 				}),
