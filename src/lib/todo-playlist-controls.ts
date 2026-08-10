@@ -37,13 +37,13 @@ export const TodoPlaylistControlsLive = Layer.effect(
 		const isPlaylistPage = (location = window.location.href) => {
 			const pathSegments = new URL(location, window.location.origin).pathname.split("/").filter(Boolean);
 			const setsIndex = pathSegments.indexOf("sets");
-			return setsIndex === pathSegments.length - 2;
+			return setsIndex >= 0 && setsIndex === pathSegments.length - 2;
 		};
 
 		const getPageAction = (location = window.location.href) => {
+			if (!isPlaylistPage(location)) return null;
 			if (isTodoPlaylistPage(location)) return "cleanup" as const;
-			if (isPlaylistPage(location)) return "copy" as const;
-			return null;
+			return "copy" as const;
 		};
 
 		const removeActionButton = () => {
