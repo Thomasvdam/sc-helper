@@ -105,12 +105,15 @@ let previousDatadomeCookie: string | null = null;
 
 	// Listen for page navigations and notify the extension
 	window.navigation.addEventListener("navigate", (a) => {
+		const navigationDetail = { url: a.destination?.url };
+		window.dispatchEvent(new CustomEvent("main-world-route-change", { detail: navigationDetail }));
+
 		// Don't trigger on replace navigations
 		if (a.navigationType === "replace") {
 			return;
 		}
 
-		window.dispatchEvent(new CustomEvent("main-world-navigation", {}));
+		window.dispatchEvent(new CustomEvent("main-world-navigation", { detail: navigationDetail }));
 	});
 
 	console.log("[Interceptors]: Setup complete");

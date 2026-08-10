@@ -5,6 +5,7 @@ class FailedToFetchPlaylistError extends Data.TaggedError("FailedToFetchPlaylist
 class FailedToParseJSONError extends Data.TaggedError("FailedToParseJSONError")<{ error: unknown }> {}
 
 const PlaylistResponseSchema = Schema.Struct({
+	permalink_url: Schema.String,
 	tracks: Schema.Array(
 		Schema.Struct({
 			id: Schema.Number,
@@ -14,7 +15,7 @@ const PlaylistResponseSchema = Schema.Struct({
 
 const decodePlaylistResponse = Schema.decodeUnknown(PlaylistResponseSchema);
 
-export const fetchPlaylistTrackIds = (playlistId: string) =>
+export const fetchPlaylist = (playlistId: string) =>
 	Effect.gen(function* () {
 		const clientService = yield* SoundcloudClientService;
 		const clientId = yield* clientService.getClientId();
@@ -31,13 +32,13 @@ export const fetchPlaylistTrackIds = (playlistId: string) =>
 		});
 
 		const playlist = yield* decodePlaylistResponse(playlistAny);
+		return playlist;
+	});
 
-		const trackIds: string[] = [];
-		for (const track of playlist.tracks) {
-			trackIds.push(track.id.toString());
-		}
-
-		return trackIds;
+export const fetchPlaylistTrackIds = (playlistId: string) =>
+	Effect.gen(function* () {
+		const playlist = yield* fetchPlaylist(playlistId);
+		return playlist.tracks.map((track) => track.id.toString());
 	});
 
 export class FailedToPutPlaylistError extends Data.TaggedError("FailedToPutPlaylistError")<{ error: unknown }> {}

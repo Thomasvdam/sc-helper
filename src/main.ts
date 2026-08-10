@@ -6,11 +6,16 @@ import { PermalinkToStreamStateLive } from "./lib/permalink-to-stream-state";
 import { SoundcloudClientServiceLive } from "./lib/soundcloud-client-service";
 import { StreamServiceLive } from "./lib/stream-service";
 import { TodoPlaylistLive } from "./lib/todo-playlist";
+import { TodoPlaylistControls, TodoPlaylistControlsLive } from "./lib/todo-playlist-controls";
 import { TrackLikesServiceLive } from "./lib/track-likes-service";
 
-const program = runLoadingIndicator.pipe(
+const program = Effect.gen(function* () {
+	yield* TodoPlaylistControls;
+	yield* runLoadingIndicator;
+}).pipe(
 	Effect.provide(LoadingStateLive),
 	Effect.provide(HighlightSetsServiceLive),
+	Effect.provide(TodoPlaylistControlsLive),
 	Effect.provide(TodoPlaylistLive),
 	Effect.provide(StreamServiceLive),
 	Effect.provide(TrackLikesServiceLive),
