@@ -1,4 +1,5 @@
 import { Effect } from "effect";
+import { buildInfo } from "../lib/build-info";
 import { type Config, defaultConfig, getConfig } from "../lib/config";
 
 function getFormElements(): Record<keyof Config, HTMLInputElement | HTMLSelectElement> {
@@ -62,7 +63,15 @@ function closeConfig() {
 	window.close();
 }
 
+function showBuildInfo() {
+	const element = document.getElementById("build-info");
+	if (element) {
+		element.textContent = `Version ${buildInfo.version} · Build ${buildInfo.buildId}`;
+	}
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+	showBuildInfo();
 	restoreConfig();
 	document.getElementById("save")?.addEventListener("click", saveConfig);
 	document.getElementById("cancel")?.addEventListener("click", closeConfig);

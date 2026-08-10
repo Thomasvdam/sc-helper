@@ -1,4 +1,5 @@
 import { Effect, Logger, LogLevel } from "effect";
+import { buildInfo } from "./lib/build-info";
 import { ConfigService, getConfig } from "./lib/config";
 import { HighlightSetsServiceLive } from "./lib/highlight-sets-service";
 import { LoadingStateLive, runLoadingIndicator } from "./lib/loading-state";
@@ -8,6 +9,8 @@ import { StreamServiceLive } from "./lib/stream-service";
 import { TodoPlaylistLive } from "./lib/todo-playlist";
 import { TodoPlaylistControls, TodoPlaylistControlsLive } from "./lib/todo-playlist-controls";
 import { TrackLikesServiceLive } from "./lib/track-likes-service";
+
+console.info(`[SoundCloud Helper] Version ${buildInfo.version} · Build ${buildInfo.buildId}`);
 
 const program = Effect.gen(function* () {
 	yield* TodoPlaylistControls;
