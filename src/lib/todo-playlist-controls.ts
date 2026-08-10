@@ -1,16 +1,14 @@
 import { Context, Effect, Layer, Runtime } from "effect";
 import type { ConfigService } from "./config";
+import { ensureIndicatorRoot } from "./loading-state";
 import type { SoundcloudClientService } from "./soundcloud-client-service";
 import { TodoPlaylist } from "./todo-playlist";
 import type { TrackLikesService } from "./track-likes-service";
 
 export class TodoPlaylistControls extends Context.Tag("TodoPlaylistControls")<TodoPlaylistControls, void>() {}
 
-const playlistControlsSelectors = ["div.listenEngagement__footer", "div.sc-button-group.sc-button-group-medium"].join(
-	", ",
-);
-
 const navigationEvent = "main-world-route-change";
+const playlistControlsId = "sc-helper-playlist-controls";
 
 const normalizeNavigationLocation = (value: string) => {
 	const url = new URL(value, window.location.origin);
@@ -37,8 +35,9 @@ export const TodoPlaylistControlsLive = Layer.effect(
 			normalizeNavigationLocation(todoPlaylist.getPermalinkUrl()) === normalizeNavigationLocation(location);
 
 		const isPlaylistPage = (location = window.location.href) => {
-			const pathname = new URL(location, window.location.origin).pathname;
-			return pathname.split("/").includes("sets");
+			const pathSegments = new URL(location, window.location.origin).pathname.split("/").filter(Boolean);
+			const setsIndex = pathSegments.indexOf("sets");
+			return setsIndex === pathSegments.length - 2;
 		};
 
 		const getPageAction = (location = window.location.href) => {
@@ -51,6 +50,7 @@ export const TodoPlaylistControlsLive = Layer.effect(
 			if (actionButton) logDebug("Removed playlist action button");
 			actionButton?.remove();
 			actionButton = null;
+			document.getElementById(playlistControlsId)?.remove();
 		};
 
 		const stopWaitingForDOM = () => {
@@ -61,23 +61,35 @@ export const TodoPlaylistControlsLive = Layer.effect(
 
 		const addActionButton = (controls: HTMLElement, action: "cleanup" | "copy") => {
 			if (actionButton?.isConnected && actionButton.dataset.action === action) return;
-			removeActionButton();
+			if (actionButton) {
+				actionButton.remove();
+				actionButton = null;
+			}
 
-			logDebug("Injected playlist action button", {
-				controlsId: controls.id,
-				controlsClassName: controls.className,
-			});
+			logDebug("Added playlist action button to SC Helper UI", { controlsId: controls.id });
 
 			actionButton = document.createElement("button");
 			actionButton.type = "button";
 			actionButton.dataset.action = action;
-			actionButton.className = `sc-button sc-button-medium sc-helper-${action}-button`;
+			actionButton.className = `sc-helper-${action}-button`;
 			actionButton.textContent = action === "cleanup" ? "Clean up liked tracks" : "Copy unliked tracks";
 			actionButton.title =
 				action === "cleanup"
 					? "Remove liked tracks from this playlist"
 					: "Read this playlist and add tracks you have not liked to your todo playlist";
-			actionButton.style.marginLeft = "8px";
+			actionButton.style.cssText = `
+				width: 100%;
+				padding: 5px 8px;
+				border: 1px solid rgba(255, 255, 255, 0.35);
+				border-radius: 4px;
+				background: #ff5500;
+				color: #fff;
+				cursor: pointer;
+				font: inherit;
+				font-weight: 600;
+				line-height: 1.4;
+				white-space: nowrap;
+			`;
 			const button = actionButton;
 
 			button.addEventListener("click", () => {
@@ -128,8 +140,16 @@ export const TodoPlaylistControlsLive = Layer.effect(
 				return;
 			}
 
-			const controls = document.querySelector<HTMLElement>(playlistControlsSelectors);
-			if (!controls) return;
+			const root = ensureIndicatorRoot();
+			if (!root) return;
+
+			let controls = root.querySelector<HTMLElement>(`#${playlistControlsId}`);
+			if (!controls) {
+				controls = document.createElement("div");
+				controls.id = playlistControlsId;
+				controls.style.cssText = "display: flex; flex-direction: column; gap: 6px; margin-top: 8px;";
+				root.append(controls);
+			}
 
 			addActionButton(controls, action);
 			stopWaitingForDOM();
@@ -171,7 +191,7 @@ export const TodoPlaylistControlsLive = Layer.effect(
 				return;
 			}
 
-			logDebug("Waiting for playlist controls", { selector: playlistControlsSelectors });
+			logDebug("Waiting for playlist controls in SC Helper UI", { controlsId: playlistControlsId });
 			domObserver = new MutationObserver(injectWhenReady);
 			domObserver.observe(document.documentElement, { childList: true, subtree: true });
 		};

@@ -13,6 +13,8 @@ const initialLoadingState: LoadingState = {
 	datadome: false,
 };
 
+export const loadingIndicatorId = "sc-helper-loading-indicator";
+
 class LoadingStateService extends Context.Tag("LoadingStateService")<LoadingStateService, Ref.Ref<LoadingState>>() {}
 export const LoadingStateLive = Layer.effect(LoadingStateService, Ref.make(initialLoadingState));
 
@@ -23,11 +25,13 @@ const LABELS: Record<ServiceStatus, string> = {
 	datadome: "Datadome",
 };
 
-function ensureIndicatorRoot(): HTMLElement {
-	let root = document.getElementById("sc-helper-loading-indicator");
+export function ensureIndicatorRoot(): HTMLElement | null {
+	let root = document.getElementById(loadingIndicatorId);
 	if (!root) {
+		if (!document.body) return null;
+
 		root = document.createElement("div");
-		root.id = "sc-helper-loading-indicator";
+		root.id = loadingIndicatorId;
 		root.style.cssText = `
 			position: fixed;
 			top: 12px;
@@ -54,7 +58,7 @@ function allReady(state: LoadingState): boolean {
 }
 
 function updateIndicatorDOM(state: LoadingState) {
-	const root = document.getElementById("sc-helper-loading-indicator");
+	const root = document.getElementById(loadingIndicatorId);
 	const loadingTitleSuffixEl = document.getElementById("sc-helper-loading-title-suffix");
 	const rowsEl = document.getElementById("sc-helper-loading-rows");
 	if (!root || !rowsEl || !loadingTitleSuffixEl) return;
