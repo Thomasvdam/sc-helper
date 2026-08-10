@@ -24,6 +24,10 @@
 	],
 	"host_permissions": ["*://*.soundcloud.com/"],
 	"permissions": ["storage", "cookies"],
+	"background": {
+		"service_worker": "background.js",
+		"type": "module"
+	},
 	"options_ui": {
 		"page": "options-ui/index.html",
 		"open_in_tab": false

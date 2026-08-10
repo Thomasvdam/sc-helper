@@ -6,7 +6,7 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const outdir = path.join(__dirname, "dist");
 
 const _a = await Bun.build({
-	entrypoints: ["src/main.ts", "src/options-ui/index.html", "src/interceptors.ts"],
+	entrypoints: ["src/main.ts", "src/options-ui/index.html", "src/interceptors.ts", "src/background.ts"],
 	outdir,
 	target: "browser",
 	format: "esm",

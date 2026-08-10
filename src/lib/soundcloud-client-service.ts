@@ -23,6 +23,13 @@ export const SoundcloudClientServiceLive = Layer.effect(
 		const datadomeCookieRef = yield* Ref.make<string>("NOT_SET");
 		const datadomeCookieAvailable = yield* Effect.makeLatch();
 
+		const setDatadomeCookie = (datadomeCookie: string) =>
+			Effect.gen(function* () {
+				yield* Effect.logInfo("Setting datadome cookie");
+				yield* Ref.set(datadomeCookieRef, datadomeCookie);
+				yield* datadomeCookieAvailable.open;
+			});
+
 		window.addEventListener("soundcloud-client-id", ((event: CustomEvent) => {
 			Runtime.runSync(
 				runtime,
@@ -52,12 +59,16 @@ export const SoundcloudClientServiceLive = Layer.effect(
 				runtime,
 				Effect.gen(function* () {
 					const datadomeCookie = event.detail;
-					yield* Effect.logInfo(`Setting datadome cookie to ${datadomeCookie}`);
-					yield* Ref.set(datadomeCookieRef, datadomeCookie);
-					yield* datadomeCookieAvailable.open;
+					yield* setDatadomeCookie(datadomeCookie);
 				}),
 			);
 		}) as EventListener);
+
+		void requestDatadomeCookieFromExtension().then((datadomeCookie) => {
+			if (datadomeCookie) {
+				Runtime.runSync(runtime, setDatadomeCookie(datadomeCookie));
+			}
+		});
 
 		yield* Effect.logDebug("Soundcloud client service initialized");
 
@@ -86,3 +97,20 @@ export const SoundcloudClientServiceLive = Layer.effect(
 		};
 	}),
 );
+
+type DatadomeCookieResponse = {
+	datadomeCookie?: string | null;
+};
+
+function requestDatadomeCookieFromExtension() {
+	return new Promise<string | null>((resolve) => {
+		chrome.runtime.sendMessage({ type: "get-datadome-cookie" }, (response?: DatadomeCookieResponse) => {
+			if (chrome.runtime.lastError) {
+				resolve(null);
+				return;
+			}
+
+			resolve(response?.datadomeCookie ?? null);
+		});
+	});
+}

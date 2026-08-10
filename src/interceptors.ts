@@ -7,6 +7,32 @@ let previousClientId: string | null = null;
 let previousAuthHeader: string | null = null;
 let previousDatadomeCookie: string | null = null;
 
+function publishDatadomeCookie(datadomeCookie: string | null | undefined) {
+	const normalizedCookie = datadomeCookie?.trim();
+	if (!normalizedCookie || normalizedCookie === previousDatadomeCookie) {
+		return;
+	}
+
+	previousDatadomeCookie = normalizedCookie;
+	window.dispatchEvent(new CustomEvent("soundcloud-datadome-cookie", { detail: normalizedCookie }));
+}
+
+function readDatadomeCookie() {
+	try {
+		publishDatadomeCookie(parseCookie(document.cookie).datadome);
+	} catch {
+		// A malformed cookie should not interfere with request interception.
+	}
+}
+
+function readDatadomeHeader(headers: Headers) {
+	try {
+		publishDatadomeCookie(headers.get("x-datadome-clientid"));
+	} catch {
+		// A malformed Headers value should not interfere with request interception.
+	}
+}
+
 (() => {
 	// @ts-expect-error - window.__XHR_INTERCEPTED__ is custom
 	if (window.__XHR_INTERCEPTED__) return; // Prevent double injection
@@ -17,8 +43,10 @@ let previousDatadomeCookie: string | null = null;
 	const originalOpen = XMLHttpRequest.prototype.open;
 	const originalSend = XMLHttpRequest.prototype.send;
 	const originalSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
+	const originalFetch = window.fetch;
 
 	console.log("[Interceptors]: Injected into main world and active");
+	readDatadomeCookie();
 
 	// Override prototype methods
 	XMLHttpRequest.prototype.open = function (
@@ -53,11 +81,7 @@ let previousDatadomeCookie: string | null = null;
 				const cookieHeader = this.getResponseHeader("x-set-cookie");
 				if (cookieHeader) {
 					const cookie = parseCookie(cookieHeader);
-					const datadomeCookie = cookie.datadome;
-					if (datadomeCookie && datadomeCookie !== previousDatadomeCookie) {
-						previousDatadomeCookie = datadomeCookie;
-						window.dispatchEvent(new CustomEvent("soundcloud-datadome-cookie", { detail: datadomeCookie }));
-					}
+					publishDatadomeCookie(cookie.datadome);
 				}
 			}
 
@@ -88,11 +112,26 @@ let previousDatadomeCookie: string | null = null;
 	};
 
 	XMLHttpRequest.prototype.setRequestHeader = function (name: string, value: string) {
+		if (name.toLowerCase() === "x-datadome-clientid") {
+			publishDatadomeCookie(value);
+		}
+
 		if (name.toLowerCase() === "authorization" && value !== previousAuthHeader) {
 			previousAuthHeader = value;
 			window.dispatchEvent(new CustomEvent("soundcloud-auth-header", { detail: value }));
 		}
 		return originalSetRequestHeader.call(this, name, value);
+	};
+
+	window.fetch = function (input: RequestInfo | URL, init?: RequestInit) {
+		const headers = new Headers(input instanceof Request ? input.headers : undefined);
+		if (init?.headers) {
+			new Headers(init.headers).forEach((value, name) => {
+				headers.set(name, value);
+			});
+		}
+		readDatadomeHeader(headers);
+		return originalFetch.call(this, input, init);
 	};
 
 	// Also proxy the constructor
