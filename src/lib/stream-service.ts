@@ -1,19 +1,18 @@
-import { Context, Effect, Layer, Runtime, Schema } from "effect";
+import { Context, Effect, Layer, Schema } from "effect";
 import { getPermalink, type Permalink } from "./permalink";
 import { PermalinkToStreamState } from "./permalink-to-stream-state";
 
-export class StreamService extends Context.Tag("StreamService")<StreamService, void>() {}
+export class StreamService extends Context.Service<StreamService, void>()("StreamService") {}
 
 export const StreamServiceLive = Layer.effect(
 	StreamService,
 	Effect.gen(function* () {
-		const runtime = yield* Effect.runtime<PermalinkToStreamState>();
+		const services = yield* Effect.context<PermalinkToStreamState>();
 
 		const permalinkToStreamState = yield* PermalinkToStreamState;
 
 		window.addEventListener("response-stream", ((event: CustomEvent) => {
-			Runtime.runSync(
-				runtime,
+			Effect.runSyncWith(services)(
 				Effect.gen(function* () {
 					yield* Effect.logTrace(`Stream response from ${event.detail.requestUrl}`);
 
@@ -34,8 +33,7 @@ export const StreamServiceLive = Layer.effect(
 		}) as EventListener);
 
 		window.addEventListener("response-tracks", ((event: CustomEvent) => {
-			Runtime.runSync(
-				runtime,
+			Effect.runSyncWith(services)(
 				Effect.gen(function* () {
 					yield* Effect.logTrace(`Tracks response from ${event.detail.requestUrl}`);
 
@@ -66,7 +64,7 @@ const StreamResponseSchema = Schema.Struct({
 	requestUrl: Schema.String,
 });
 
-const decodeStreamResponse = Schema.decodeUnknown(StreamResponseSchema);
+const decodeStreamResponse = Schema.decodeUnknownEffect(StreamResponseSchema);
 
 const TracksResponseSchema = Schema.Struct({
 	data: Schema.Struct({
@@ -75,4 +73,4 @@ const TracksResponseSchema = Schema.Struct({
 	requestUrl: Schema.String,
 });
 
-const decodeTracksResponse = Schema.decodeUnknown(TracksResponseSchema);
+const decodeTracksResponse = Schema.decodeUnknownEffect(TracksResponseSchema);

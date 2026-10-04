@@ -20,7 +20,7 @@ SoundCloud Helper is a personal Chrome Manifest V3 extension built with Bun, Typ
 
 - MAIN-world and isolated content-script code communicate through `window` `CustomEvent`s. If an event name or payload changes, update its producer in `interceptors.ts` and every consumer together.
 - Add page-network interception and endpoint classification in `interceptors.ts`; decode untrusted payloads with Effect `Schema` in the consuming service.
-- Keep Effect dependencies explicit with `Context.Tag` and `Layer`. Wire every new live layer in `src/main.ts`, respecting dependencies between layers.
+- Keep Effect dependencies explicit with `Context.Service` and `Layer`. Wire every new live layer in `src/main.ts`, respecting dependencies between layers.
 - SoundCloud data can arrive after DOM nodes. Preserve the latch/queue-based coordination rather than assuming initialization order.
 - Normalize track IDs to strings in in-memory sets. Only convert to numbers at the SoundCloud playlist request boundary.
 - Treat auth headers and similar credentials as secrets; keep them redacted and never add credential logging.
@@ -35,11 +35,13 @@ Use Bun and keep `bun.lock` in sync when dependencies change.
 bun install
 bun run dev       # rebuild on source changes
 bun run lint      # Biome check
+bun run typecheck # browser TypeScript check
+bun test          # migration regression tests with stubbed browser/network APIs
 bun run fmt       # Biome check with safe writes
 bun run build     # emits the unpacked extension to dist/
 ```
 
-There is currently no automated test suite. Before handing off a change, run `bun run lint` and `bun run build`. For behavior changes, load/reload `dist/` as an unpacked Chrome extension, reload a SoundCloud tab, and manually exercise the affected flow. Check both the page console and extension options when relevant; a successful build alone does not validate SoundCloud DOM selectors, intercepted events, authentication, or API writes.
+Before handing off a change, run `bun run lint`, `bun run typecheck`, `bun test`, and `bun run build`. The regression tests use stubbed browser and network APIs. For behavior changes, load/reload `dist/` as an unpacked Chrome extension, reload a SoundCloud tab, and manually exercise the affected flow. Check both the page console and extension options when relevant; automated checks alone do not validate SoundCloud DOM selectors, intercepted events, authentication, or API writes.
 
 ## Change hygiene
 

@@ -1,4 +1,4 @@
-import { Context, Data, Effect, Layer, MutableHashSet, Queue, Runtime } from "effect";
+import { Context, Data, Effect, Layer, Queue } from "effect";
 import { ConfigService } from "./config";
 import { getPermalink } from "./permalink";
 import { PermalinkToStreamState } from "./permalink-to-stream-state";
@@ -6,18 +6,19 @@ import type { SoundcloudClientService } from "./soundcloud-client-service";
 import { TodoPlaylist } from "./todo-playlist";
 import { TrackLikesService } from "./track-likes-service";
 
-export class HighlightSetsService extends Context.Tag("HighlightSetsService")<HighlightSetsService, void>() {}
+export class HighlightSetsService extends Context.Service<HighlightSetsService, void>()("HighlightSetsService") {}
 
 export const HighlightSetsServiceLive = Layer.effect(
 	HighlightSetsService,
 	Effect.gen(function* () {
-		const runtime = yield* Effect.runtime<SoundcloudClientService | ConfigService>();
+		const services = yield* Effect.context<SoundcloudClientService | ConfigService>();
 		const config = yield* ConfigService;
 		const todoPlaylist = yield* TodoPlaylist;
 		const permalinkToStreamState = yield* PermalinkToStreamState;
 		const trackLikesService = yield* TrackLikesService;
 
-		const processedItems = MutableHashSet.empty<Element>();
+		// DOM nodes need reference identity; Effect v4 collections hash objects structurally.
+		const processedItems = new Set<Element>();
 		const newSoundListItems = yield* Queue.unbounded<HTMLElement>();
 
 		const findSoundListItems = Effect.gen(function* () {
@@ -27,38 +28,37 @@ export const HighlightSetsServiceLive = Layer.effect(
 
 			const newItems: HTMLElement[] = [];
 			soundListItems.forEach((item) => {
-				if (MutableHashSet.has(processedItems, item)) {
+				if (processedItems.has(item)) {
 					return;
 				}
 
-				MutableHashSet.add(processedItems, item);
+				processedItems.add(item);
 				newItems.push(item);
 			});
 
 			yield* Effect.logTrace(`Adding ${newItems.length} new sound list items to queue`);
-			yield* newSoundListItems.offerAll(newItems);
+			yield* Queue.offerAll(newSoundListItems, newItems);
 		});
 
 		// Listen for DOM mutations
 		const mutationObserver = new MutationObserver(() => {
-			Runtime.runSync(runtime, findSoundListItems);
+			Effect.runSyncWith(services)(findSoundListItems);
 		});
 		mutationObserver.observe(document.body, { childList: true, subtree: true, attributes: false });
 
 		window.addEventListener("main-world-navigation", (details) => {
-			Runtime.runSync(
-				runtime,
+			Effect.runSyncWith(services)(
 				Effect.gen(function* () {
 					yield* Effect.logDebug("Navigation detected, resetting state").pipe(Effect.annotateLogs({ details }));
 
-					MutableHashSet.clear(processedItems);
+					processedItems.clear();
 				}),
 			);
 		});
 
-		yield* Effect.forkDaemon(
+		yield* Effect.forkDetach(
 			Effect.gen(function* () {
-				const item = yield* newSoundListItems.take;
+				const item = yield* Queue.take(newSoundListItems);
 				yield* Effect.logTrace(`Processing item`);
 
 				const permalink = yield* getPermalinkFromSoundListItem(item);
@@ -90,8 +90,7 @@ export const HighlightSetsServiceLive = Layer.effect(
 				const setItem = yield* addPlaylistButton(item);
 
 				setItem.addEventListener("click", () => {
-					Runtime.runPromise(
-						runtime,
+					Effect.runPromiseWith(services)(
 						Effect.gen(function* () {
 							yield* todoPlaylist.addToTodoPlaylist(streamItem.id);
 							yield* Effect.logDebug("Added to todo playlist");

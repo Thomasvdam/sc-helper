@@ -18,8 +18,8 @@ const PlaylistResponseSchema = Schema.Struct({
 	),
 });
 
-const decodePlaylistResponse = Schema.decodeUnknown(PlaylistResponseSchema);
-const decodeResolvedPlaylist = Schema.decodeUnknown(ResolvedPlaylistSchema);
+const decodePlaylistResponse = Schema.decodeUnknownEffect(PlaylistResponseSchema);
+const decodeResolvedPlaylist = Schema.decodeUnknownEffect(ResolvedPlaylistSchema);
 
 export const resolvePlaylistId = (playlistUrl: string) =>
 	Effect.gen(function* () {

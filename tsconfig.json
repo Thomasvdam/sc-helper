@@ -8,9 +8,9 @@
 		"sourceMap": false,
 		"rootDir": "src",
 		"outDir": "dist",
-		"lib": ["ES2023", "DOM"],
+		"lib": ["ES2023", "ESNext.Disposable", "DOM"],
 		"noEmitOnError": true,
-		"typeRoots": ["node_modules/@types", "node_modules/chrome-types"]
+		"types": ["chrome", "dom-navigation"]
 	},
 	"include": ["src/*", "src/options-ui/app.ts"]
 }

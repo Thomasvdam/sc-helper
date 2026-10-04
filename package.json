@@ -7,7 +7,9 @@
 		"build": "bun ./build.ts",
 		"dev": "bun run --watch ./build.ts",
 		"fmt": "bunx biome check --write .",
-		"lint": "bunx biome check ."
+		"lint": "bunx biome check .",
+		"typecheck": "tsc --noEmit",
+		"test": "bun test"
 	},
 	"devDependencies": {
 		"@types/chrome": "^0.1.36",
@@ -18,7 +20,7 @@
 	},
 	"dependencies": {
 		"cookie": "^1.1.1",
-		"effect": "^3.19.15"
+		"effect": "^4.0.0"
 	},
 	"type": "module"
 }

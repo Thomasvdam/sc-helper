@@ -1,11 +1,11 @@
-import { Context, Effect, Layer, Runtime } from "effect";
+import { Context, Effect, Layer } from "effect";
 import type { ConfigService } from "./config";
 import { ensureIndicatorRoot } from "./loading-state";
 import type { SoundcloudClientService } from "./soundcloud-client-service";
 import { TodoPlaylist } from "./todo-playlist";
 import type { TrackLikesService } from "./track-likes-service";
 
-export class TodoPlaylistControls extends Context.Tag("TodoPlaylistControls")<TodoPlaylistControls, void>() {}
+export class TodoPlaylistControls extends Context.Service<TodoPlaylistControls, void>()("TodoPlaylistControls") {}
 
 const navigationEvent = "main-world-route-change";
 const playlistControlsId = "sc-helper-playlist-controls";
@@ -22,11 +22,11 @@ export const TodoPlaylistControlsLive = Layer.effect(
 	TodoPlaylistControls,
 	Effect.gen(function* () {
 		const todoPlaylist = yield* TodoPlaylist;
-		const runtime = yield* Effect.runtime<ConfigService | SoundcloudClientService | TrackLikesService>();
+		const services = yield* Effect.context<ConfigService | SoundcloudClientService | TrackLikesService>();
 
 		const logDebug = (message: string, details?: unknown) =>
-			Runtime.runSync(runtime, Effect.logDebug(message).pipe(Effect.annotateLogs({ details })));
-		const logError = (message: string, error: unknown) => Runtime.runSync(runtime, Effect.logError(message, error));
+			Effect.runSyncWith(services)(Effect.logDebug(message).pipe(Effect.annotateLogs({ details })));
+		const logError = (message: string, error: unknown) => Effect.runSyncWith(services)(Effect.logError(message, error));
 
 		let actionButton: HTMLButtonElement | null = null;
 		let domObserver: MutationObserver | null = null;
@@ -106,17 +106,19 @@ export const TodoPlaylistControlsLive = Layer.effect(
 				};
 
 				if (action === "cleanup") {
-					Runtime.runPromise(runtime, todoPlaylist.cleanUpLikedTracks()).then(({ removedCount, remainingCount }) => {
-						if (!button.isConnected) return;
-						logDebug("Cleanup completed", { removedCount, remainingCount });
-						button.textContent = `Removed ${removedCount} liked track${removedCount === 1 ? "" : "s"} (${remainingCount} remaining)`;
-						button.disabled = false;
-					}, handleFailure);
+					Effect.runPromiseWith(services)(todoPlaylist.cleanUpLikedTracks()).then(
+						({ removedCount, remainingCount }) => {
+							if (!button.isConnected) return;
+							logDebug("Cleanup completed", { removedCount, remainingCount });
+							button.textContent = `Removed ${removedCount} liked track${removedCount === 1 ? "" : "s"} (${remainingCount} remaining)`;
+							button.disabled = false;
+						},
+						handleFailure,
+					);
 					return;
 				}
 
-				Runtime.runPromise(
-					runtime,
+				Effect.runPromiseWith(services)(
 					todoPlaylist.copyUnlikedTracksFromPlaylist(normalizeNavigationLocation(window.location.href)),
 				).then((result) => {
 					if (!button.isConnected) return;

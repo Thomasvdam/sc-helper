@@ -1,4 +1,4 @@
-import { Effect, Logger, LogLevel } from "effect";
+import { Effect, References } from "effect";
 import { buildInfo } from "./lib/build-info";
 import { ConfigService, getConfig } from "./lib/config";
 import { HighlightSetsServiceLive } from "./lib/highlight-sets-service";
@@ -31,7 +31,7 @@ async function run() {
 
 	await Effect.runPromise(
 		program.pipe(
-			Logger.withMinimumLogLevel(LogLevel.fromLiteral(config.log_level)),
+			Effect.provideService(References.MinimumLogLevel, config.log_level === "Warning" ? "Warn" : config.log_level),
 			Effect.provideService(ConfigService, config),
 		),
 	);

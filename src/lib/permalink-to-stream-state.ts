@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, MutableHashMap, Option, Schema } from "effect";
+import { Context, Effect, Latch, Layer, MutableHashMap, Option, Schema, Semaphore } from "effect";
 import type { Permalink } from "./permalink";
 
 const StreamEntry = Schema.Struct({
@@ -7,7 +7,7 @@ const StreamEntry = Schema.Struct({
 });
 type StreamEntry = typeof StreamEntry.Type;
 
-export class PermalinkToStreamState extends Context.Tag("PermalinkToStreamState")<
+export class PermalinkToStreamState extends Context.Service<
 	PermalinkToStreamState,
 	{
 		getStreamEntry: (permalink: Permalink) => Effect.Effect<StreamEntry>;
@@ -15,14 +15,14 @@ export class PermalinkToStreamState extends Context.Tag("PermalinkToStreamState"
 			entries: { permalink: Permalink; id: string | number; duration: number }[],
 		) => Effect.Effect<void>;
 	}
->() {}
+>()("PermalinkToStreamState") {}
 
 export const PermalinkToStreamStateLive = Layer.effect(
 	PermalinkToStreamState,
 	Effect.gen(function* () {
 		const map = MutableHashMap.empty<Permalink, StreamEntry>();
-		const streamUpdated = yield* Effect.makeLatch();
-		const mutex = yield* Effect.makeSemaphore(1);
+		const streamUpdated = yield* Latch.make();
+		const mutex = yield* Semaphore.make(1);
 
 		const getStreamEntry = (permalink: Permalink, depth = 0): Effect.Effect<StreamEntry> =>
 			Effect.gen(function* () {
@@ -47,7 +47,7 @@ export const PermalinkToStreamStateLive = Layer.effect(
 				Effect.gen(function* () {
 					for (const entry of entries) {
 						MutableHashMap.set(map, entry.permalink, {
-							id: entry.id,
+							id: String(entry.id),
 							duration: entry.duration,
 						});
 					}

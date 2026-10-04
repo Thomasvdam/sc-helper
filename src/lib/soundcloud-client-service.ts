@@ -1,27 +1,27 @@
-import { Context, Effect, Layer, Redacted, Ref, Runtime } from "effect";
+import { Context, Effect, Latch, Layer, Redacted, Ref } from "effect";
 
-export class SoundcloudClientService extends Context.Tag("SoundcloudClientService")<
+export class SoundcloudClientService extends Context.Service<
 	SoundcloudClientService,
 	{
 		getClientId: () => Effect.Effect<string>;
 		getAuthHeader: () => Effect.Effect<Redacted.Redacted>;
 		getDatadomeCookie: () => Effect.Effect<string>;
 	}
->() {}
+>()("SoundcloudClientService") {}
 
 export const SoundcloudClientServiceLive = Layer.effect(
 	SoundcloudClientService,
 	Effect.gen(function* () {
-		const runtime = yield* Effect.runtime();
+		const services = yield* Effect.context();
 
 		const clientIdRef = yield* Ref.make<string>("NOT_SET");
-		const idAvailable = yield* Effect.makeLatch();
+		const idAvailable = yield* Latch.make();
 
 		const authHeaderRef = yield* Ref.make<Redacted.Redacted>(Redacted.make("NOT_SET"));
-		const authHeaderAvailable = yield* Effect.makeLatch();
+		const authHeaderAvailable = yield* Latch.make();
 
 		const datadomeCookieRef = yield* Ref.make<string>("NOT_SET");
-		const datadomeCookieAvailable = yield* Effect.makeLatch();
+		const datadomeCookieAvailable = yield* Latch.make();
 
 		const setDatadomeCookie = (datadomeCookie: string) =>
 			Effect.gen(function* () {
@@ -31,8 +31,7 @@ export const SoundcloudClientServiceLive = Layer.effect(
 			});
 
 		window.addEventListener("soundcloud-client-id", ((event: CustomEvent) => {
-			Runtime.runSync(
-				runtime,
+			Effect.runSyncWith(services)(
 				Effect.gen(function* () {
 					const clientId = event.detail;
 					yield* Effect.logInfo(`Setting client ID to ${clientId}`);
@@ -43,8 +42,7 @@ export const SoundcloudClientServiceLive = Layer.effect(
 		}) as EventListener);
 
 		window.addEventListener("soundcloud-auth-header", ((event: CustomEvent) => {
-			Runtime.runSync(
-				runtime,
+			Effect.runSyncWith(services)(
 				Effect.gen(function* () {
 					const authHeader = Redacted.make(event.detail);
 					yield* Effect.logInfo(`Setting auth header`);
@@ -55,8 +53,7 @@ export const SoundcloudClientServiceLive = Layer.effect(
 		}) as EventListener);
 
 		window.addEventListener("soundcloud-datadome-cookie", ((event: CustomEvent) => {
-			Runtime.runSync(
-				runtime,
+			Effect.runSyncWith(services)(
 				Effect.gen(function* () {
 					const datadomeCookie = event.detail;
 					yield* setDatadomeCookie(datadomeCookie);
@@ -66,7 +63,7 @@ export const SoundcloudClientServiceLive = Layer.effect(
 
 		void requestDatadomeCookieFromExtension().then((datadomeCookie) => {
 			if (datadomeCookie) {
-				Runtime.runSync(runtime, setDatadomeCookie(datadomeCookie));
+				Effect.runSyncWith(services)(setDatadomeCookie(datadomeCookie));
 			}
 		});
 

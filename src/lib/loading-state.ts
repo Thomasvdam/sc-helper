@@ -15,7 +15,9 @@ const initialLoadingState: LoadingState = {
 
 export const loadingIndicatorId = "sc-helper-loading-indicator";
 
-class LoadingStateService extends Context.Tag("LoadingStateService")<LoadingStateService, Ref.Ref<LoadingState>>() {}
+class LoadingStateService extends Context.Service<LoadingStateService, Ref.Ref<LoadingState>>()(
+	"LoadingStateService",
+) {}
 export const LoadingStateLive = Layer.effect(LoadingStateService, Ref.make(initialLoadingState));
 
 const LABELS: Record<ServiceStatus, string> = {
@@ -82,7 +84,7 @@ function updateIndicatorDOM(state: LoadingState) {
 		.join("");
 }
 
-const waitForBody = Effect.async<HTMLElement>((resume) => {
+const waitForBody = Effect.callback<HTMLElement>((resume) => {
 	if (document.body) {
 		resume(Effect.succeed(document.body));
 		return;
@@ -126,10 +128,10 @@ export const runLoadingIndicator = Effect.gen(function* () {
 	const soundcloud = yield* SoundcloudClientService;
 
 	const waitAndMark = (key: ServiceStatus, wait: Effect.Effect<unknown>) =>
-		Effect.forkDaemon(
+		Effect.forkDetach(
 			wait.pipe(
 				Effect.andThen(setServiceReadyAndRefresh(ref, key)),
-				Effect.catchAll(() => Effect.void),
+				Effect.catch(() => Effect.void),
 			),
 		);
 

@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 
 const PermalinkSchema = Schema.String.pipe(Schema.brand("Permalink"));
-const decodePermalink = Schema.decode(PermalinkSchema);
+const decodePermalink = Schema.decodeEffect(PermalinkSchema);
 
 export type Permalink = typeof PermalinkSchema.Type;
 export const getPermalink = (link: string) => {

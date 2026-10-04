@@ -10,7 +10,7 @@ import {
 import type { SoundcloudClientService } from "./soundcloud-client-service";
 import { TrackLikesService } from "./track-likes-service";
 
-export class TodoPlaylist extends Context.Tag("TodoPlaylist")<
+export class TodoPlaylist extends Context.Service<
 	TodoPlaylist,
 	{
 		getPermalinkUrl: () => string;
@@ -34,7 +34,7 @@ export class TodoPlaylist extends Context.Tag("TodoPlaylist")<
 			SoundcloudClientService | ConfigService | TrackLikesService
 		>;
 	}
->() {}
+>()("TodoPlaylist") {}
 
 export const TodoPlaylistLive = Layer.effect(
 	TodoPlaylist,
